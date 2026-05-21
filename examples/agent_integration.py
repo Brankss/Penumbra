@@ -1,4 +1,4 @@
-"""Show how Penumbra plugs into an agent (e.g. Krypton, LangGraph, custom).
+"""Show how Penumbra plugs into an agent loop (LangGraph, CrewAI, custom).
 
 Penumbra is a library — not a framework. You drop the `Researcher` wherever you
 need a privacy-aware research tool and the rest of your agent code stays the

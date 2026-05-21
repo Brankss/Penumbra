@@ -142,7 +142,7 @@ The codebase is intentionally compact. The core is ~1500 lines of Python you can
 
 ---
 
-## Use Penumbra with Krypton (or any agent)
+## Use Penumbra inside any agent
 
 Penumbra is a library. Plug it into anything:
 
@@ -157,10 +157,9 @@ async def research_node(state):
 ```
 
 ```python
-# As a Krypton tool
+# As a tool exposed to any agent framework
 from penumbra import Researcher
 
-@tool
 async def private_research(query: str) -> str:
     """Research a topic without leaving fingerprints."""
     async with Researcher(privacy="high") as r:
