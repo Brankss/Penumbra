@@ -69,10 +69,10 @@ dev = [
 penumbra = "penumbra.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/Br4nko97/Penumbra"
-Documentation = "https://github.com/Br4nko97/Penumbra#readme"
-Repository = "https://github.com/Br4nko97/Penumbra"
-Issues = "https://github.com/Br4nko97/Penumbra/issues"
+Homepage = "https://github.com/Brankss/Penumbra"
+Documentation = "https://github.com/Brankss/Penumbra#readme"
+Repository = "https://github.com/Brankss/Penumbra"
+Issues = "https://github.com/Brankss/Penumbra/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/penumbra"]
