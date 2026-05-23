@@ -7,17 +7,25 @@ and Penumbra adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- **Brave Search API** backend — set `BRAVE_API_KEY` to use it.
-- **Tavily Search API** backend — set `TAVILY_API_KEY` to use it.
-- **Playwright fallback** for SearXNG instances behind Cloudflare / rate limits.
-- Defensive 200-char truncation on search queries (some engines reject long ones).
+- **Browser-based DuckDuckGo and Bing search** as the default backend.
+  Penumbra now runs SERPs through its own headless Chromium, which sidesteps
+  the rate-limiting and Cloudflare challenges that block lightweight scrapers.
+  Works out of the box, no API key required.
+- **Brave Search API** backend — opt-in via `BRAVE_API_KEY`. Faster than the
+  browser path when configured.
+- **Tavily Search API** backend — opt-in via `TAVILY_API_KEY`.
+- Defensive 200-char truncation on search queries.
 
 ### Changed
 - Planner prompt now demands keyword-style subqueries (3-8 words, no question
-  marks). Verbose multi-clause questions were getting rejected or returning
-  zero results from search engines.
-- Search cascade order is now: Brave → Tavily → SearXNG-http → DDG-Lite →
-  SearXNG-browser.
+  marks). Verbose multi-clause questions returned zero results.
+- New search cascade: Brave (opt-in) → Tavily (opt-in) → DuckDuckGo (browser)
+  → Bing (browser) → SearXNG (browser, last resort).
+
+### Removed
+- httpx-only SearXNG and DuckDuckGo-Lite backends. They were almost always
+  blocked in practice (Cloudflare, 429, 202 bot challenges). The browser path
+  replaces them with something that actually works.
 
 ## [0.1.1] — CLI fix
 

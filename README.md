@@ -88,17 +88,21 @@ sudo apt install tor
 
 ### Search backend
 
-Penumbra tries multiple search backends in cascade. By default it uses public
-SearXNG instances + DuckDuckGo Lite, which are free but frequently rate-limited.
-For production use, set one of these env vars to get a stable JSON API:
+Penumbra runs search through the same headless Chromium it already uses for
+fetching — DuckDuckGo first, Bing as fallback. **It works out of the box, with
+no API keys.** Browser-based SERPs sidestep the rate-limiting and Cloudflare
+challenges that destroy lightweight scrapers.
+
+If you want a faster path (no browser overhead per query), opt in to a
+dedicated search API by setting one of these env vars — Penumbra will detect
+them automatically:
 
 ```bash
-export BRAVE_API_KEY="..."     # free: 2000 queries/month — https://api.search.brave.com/
-export TAVILY_API_KEY="..."    # free: $5 credit — https://tavily.com/
+export BRAVE_API_KEY="..."     # optional, free 2000 queries/month
+export TAVILY_API_KEY="..."    # optional, free $5 credit
 ```
 
-If both are set, Brave is tried first. If neither is set, Penumbra falls back
-to the free public backends.
+You don't need either. They're a speed optimization, not a requirement.
 
 Then:
 
