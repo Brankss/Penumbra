@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import urllib.parse
 from dataclasses import dataclass
@@ -175,7 +176,7 @@ class PrivateBrowser:
                 results = await self._try_searxng(client, instance, query, limit)
                 if results:
                     logger.info(
-                        "Search '%s' via SearXNG (%s) -> %d results",
+                        "Search '%s' via SearXNG-http (%s) -> %d results",
                         query[:60],
                         instance,
                         len(results),
@@ -186,6 +187,19 @@ class PrivateBrowser:
                 logger.info(
                     "Search '%s' via DDG-Lite -> %d results",
                     query[:60],
+                    len(results),
+                )
+                return results
+
+        # Last resort: load SearXNG via the actual browser so Cloudflare's
+        # JS challenge can resolve. Slower (~5-15s per challenge) but reliable.
+        for instance in _SEARXNG_INSTANCES:
+            results = await self._try_searxng_playwright(instance, query, limit)
+            if results:
+                logger.info(
+                    "Search '%s' via SearXNG-browser (%s) -> %d results",
+                    query[:60],
+                    instance,
                     len(results),
                 )
                 return results
@@ -268,6 +282,57 @@ class PrivateBrowser:
             logger.debug("DDG-Lite returned %d", resp.status_code)
             return []
         return self._parse_ddg_lite(resp.text, limit)
+
+    async def _try_searxng_playwright(
+        self,
+        instance: str,
+        query: str,
+        limit: int,
+    ) -> list[SearchResult]:
+        """Use Playwright to hit a SearXNG JSON endpoint behind Cloudflare/rate limits.
+
+        The browser solves the JS challenge transparently; we then read the
+        raw JSON body that SearXNG renders inside the page.
+        """
+        if self._browser is None:
+            return []
+        url = (
+            f"{instance.rstrip('/')}/search?"
+            f"{urllib.parse.urlencode({'q': query, 'format': 'json'})}"
+        )
+        async with self._semaphore:
+            try:
+                ctx, _ = await self._new_context()
+            except BrowserError:
+                return []
+            try:
+                page = await ctx.new_page()
+                try:
+                    resp = await page.goto(url, wait_until="domcontentloaded")
+                except Exception as e:  # noqa: BLE001 — best-effort fallback
+                    logger.debug("Playwright nav to %s failed: %s", instance, e)
+                    return []
+                if resp is None or resp.status != 200:
+                    logger.debug(
+                        "Playwright SearXNG %s returned %s",
+                        instance,
+                        resp.status if resp else "none",
+                    )
+                    return []
+                body = await page.evaluate("() => document.body.innerText")
+                if not body or not body.strip().startswith(("{", "[")):
+                    logger.debug("Playwright SearXNG %s returned non-JSON body", instance)
+                    return []
+                try:
+                    data = json.loads(body)
+                except json.JSONDecodeError:
+                    logger.debug("Playwright SearXNG %s body not valid JSON", instance)
+                    return []
+            finally:
+                await ctx.close()
+        if not isinstance(data, dict):
+            return []
+        return self._parse_searxng(data, limit)
 
     def _parse_ddg_lite(self, html: str, limit: int) -> list[SearchResult]:
         with contextlib.suppress(Exception):
