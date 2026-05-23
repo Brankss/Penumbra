@@ -86,6 +86,20 @@ brew install tor
 sudo apt install tor
 ```
 
+### Search backend
+
+Penumbra tries multiple search backends in cascade. By default it uses public
+SearXNG instances + DuckDuckGo Lite, which are free but frequently rate-limited.
+For production use, set one of these env vars to get a stable JSON API:
+
+```bash
+export BRAVE_API_KEY="..."     # free: 2000 queries/month — https://api.search.brave.com/
+export TAVILY_API_KEY="..."    # free: $5 credit — https://tavily.com/
+```
+
+If both are set, Brave is tried first. If neither is set, Penumbra falls back
+to the free public backends.
+
 Then:
 
 ```python

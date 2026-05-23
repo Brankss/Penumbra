@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import urllib.parse
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -67,6 +68,8 @@ _SEARXNG_INSTANCES: tuple[str, ...] = (
     "https://opnxng.com",
 )
 _DDG_LITE_ENDPOINT = "https://lite.duckduckgo.com/lite/"
+_BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+_TAVILY_ENDPOINT = "https://api.tavily.com/search"
 
 
 class PrivateBrowser:
@@ -151,11 +154,17 @@ class PrivateBrowser:
     async def search(self, query: str, *, limit: int = 10) -> list[SearchResult]:
         """Run a search across backends and return result URLs (deduped, clean).
 
-        Strategy:
-        1. Try each SearXNG instance with format=json. If one returns results,
-           use them.
-        2. Fall back to DuckDuckGo Lite HTML parsing.
+        Cascade order (each layer used only if the previous returned nothing):
+        1. Brave Search API     — requires BRAVE_API_KEY
+        2. Tavily Search API    — requires TAVILY_API_KEY
+        3. SearXNG over httpx   — public instances (often rate-limited)
+        4. DuckDuckGo Lite      — HTML parse, often soft-blocks
+        5. SearXNG over Playwright — last resort, slow but reliable
         """
+        # Search engines penalize verbose multi-clause queries. Cap defensively.
+        query = query.strip()
+        if len(query) > 200:
+            query = query[:200].rsplit(" ", 1)[0]
         fp = self._fp_engine.generate()
         headers = {
             "User-Agent": fp.user_agent,
@@ -172,6 +181,29 @@ class PrivateBrowser:
             client_kwargs["proxy"] = self._socks_proxy
 
         async with httpx.AsyncClient(**client_kwargs) as client:  # type: ignore[arg-type]
+            # Premium backends first: dedicated search APIs with stable SLAs.
+            brave_key = os.environ.get("BRAVE_API_KEY")
+            if brave_key:
+                results = await self._try_brave(client, brave_key, query, limit)
+                if results:
+                    logger.info(
+                        "Search '%s' via Brave -> %d results",
+                        query[:60],
+                        len(results),
+                    )
+                    return results
+            tavily_key = os.environ.get("TAVILY_API_KEY")
+            if tavily_key:
+                results = await self._try_tavily(client, tavily_key, query, limit)
+                if results:
+                    logger.info(
+                        "Search '%s' via Tavily -> %d results",
+                        query[:60],
+                        len(results),
+                    )
+                    return results
+
+            # Free fallback chain: public SearXNG instances + DDG Lite.
             for instance in _SEARXNG_INSTANCES:
                 results = await self._try_searxng(client, instance, query, limit)
                 if results:
@@ -208,6 +240,106 @@ class PrivateBrowser:
             f"All search backends failed for query: {query[:80]!r}. "
             "Try again or check connectivity."
         )
+
+    async def _try_brave(
+        self,
+        client: httpx.AsyncClient,
+        api_key: str,
+        query: str,
+        limit: int,
+    ) -> list[SearchResult]:
+        try:
+            resp = await client.get(
+                _BRAVE_ENDPOINT,
+                params={"q": query, "count": min(max(limit, 1), 20)},
+                headers={
+                    "X-Subscription-Token": api_key,
+                    "Accept": "application/json",
+                    "Accept-Encoding": "gzip",
+                },
+            )
+        except httpx.HTTPError as e:
+            logger.debug("Brave network error: %s", e)
+            return []
+        if resp.status_code != 200:
+            logger.debug("Brave returned %d: %s", resp.status_code, resp.text[:200])
+            return []
+        try:
+            data = resp.json()
+        except ValueError:
+            return []
+        raw = data.get("web", {}).get("results", [])
+        if not isinstance(raw, list):
+            return []
+        cleaned: list[SearchResult] = []
+        seen: set[str] = set()
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url", "")).strip()
+            if not url or url in seen or not url.startswith(("http://", "https://")):
+                continue
+            seen.add(url)
+            cleaned.append(
+                SearchResult(
+                    url=url,
+                    title=str(item.get("title", ""))[:200],
+                    snippet=str(item.get("description", ""))[:500],
+                )
+            )
+            if len(cleaned) >= limit:
+                break
+        return cleaned
+
+    async def _try_tavily(
+        self,
+        client: httpx.AsyncClient,
+        api_key: str,
+        query: str,
+        limit: int,
+    ) -> list[SearchResult]:
+        try:
+            resp = await client.post(
+                _TAVILY_ENDPOINT,
+                json={
+                    "api_key": api_key,
+                    "query": query,
+                    "max_results": limit,
+                    "search_depth": "basic",
+                },
+            )
+        except httpx.HTTPError as e:
+            logger.debug("Tavily network error: %s", e)
+            return []
+        if resp.status_code != 200:
+            logger.debug("Tavily returned %d: %s", resp.status_code, resp.text[:200])
+            return []
+        try:
+            data = resp.json()
+        except ValueError:
+            return []
+        raw = data.get("results", [])
+        if not isinstance(raw, list):
+            return []
+        cleaned: list[SearchResult] = []
+        seen: set[str] = set()
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url", "")).strip()
+            if not url or url in seen or not url.startswith(("http://", "https://")):
+                continue
+            seen.add(url)
+            cleaned.append(
+                SearchResult(
+                    url=url,
+                    title=str(item.get("title", ""))[:200],
+                    snippet=str(item.get("content", ""))[:500],
+                )
+            )
+            if len(cleaned) >= limit:
+                break
+        return cleaned
 
     async def _try_searxng(
         self,

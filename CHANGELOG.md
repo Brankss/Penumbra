@@ -6,6 +6,19 @@ and Penumbra adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **Brave Search API** backend — set `BRAVE_API_KEY` to use it.
+- **Tavily Search API** backend — set `TAVILY_API_KEY` to use it.
+- **Playwright fallback** for SearXNG instances behind Cloudflare / rate limits.
+- Defensive 200-char truncation on search queries (some engines reject long ones).
+
+### Changed
+- Planner prompt now demands keyword-style subqueries (3-8 words, no question
+  marks). Verbose multi-clause questions were getting rejected or returning
+  zero results from search engines.
+- Search cascade order is now: Brave → Tavily → SearXNG-http → DDG-Lite →
+  SearXNG-browser.
+
 ## [0.1.1] — CLI fix
 
 ### Fixed
