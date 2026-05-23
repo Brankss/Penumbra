@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import IntEnum
 from pathlib import Path
 from typing import Any
@@ -82,7 +82,7 @@ class SourcePage(BaseModel):
     title: str
     content: str
     excerpt: str = ""
-    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     via_tor: bool = False
     word_count: int = 0
     domain: str = ""
@@ -110,7 +110,7 @@ class Report(BaseModel):
     privacy_level: PrivacyLevel = PrivacyLevel.MEDIUM
     duration_seconds: float = 0.0
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def save(self, path: str | Path) -> Path:
         """Write the markdown report to disk and return the absolute path."""

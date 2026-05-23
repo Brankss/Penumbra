@@ -94,12 +94,13 @@ class ContentExtractor:
             return ""
 
     def _extract_title(self, html: str) -> str | None:
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             from selectolax.parser import HTMLParser
+
             tree = HTMLParser(html)
             t = tree.css_first("title")
             if t is not None and t.text(strip=True):
                 return t.text(strip=True)[:300]
-        except Exception:  # noqa: BLE001
-            pass
         return None

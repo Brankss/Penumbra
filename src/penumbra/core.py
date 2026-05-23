@@ -148,10 +148,7 @@ class Researcher:
                 "No LLM provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, "
                 "or run Ollama locally, or pass cloud_llm=/local_llm= explicitly."
             )
-        if (
-            self.privacy_level.routes_sensitive_to_local
-            and local is None
-        ):
+        if self.privacy_level.routes_sensitive_to_local and local is None:
             logger.warning(
                 "Privacy level HIGH requested but no local LLM is available — "
                 "sensitive subqueries will fall back to cloud."
@@ -164,24 +161,23 @@ class Researcher:
 
     def _auto_detect_llms(self) -> tuple[LLMProvider | None, LLMProvider | None]:
         """Try each provider that has credentials; never raise during autodetect."""
+        import contextlib
+
         cloud: LLMProvider | None = None
         local: LLMProvider | None = None
-        try:
+        with contextlib.suppress(Exception):
             from penumbra.llm.anthropic_llm import AnthropicLLM
+
             cloud = AnthropicLLM()
-        except Exception:  # noqa: BLE001 — autodetect is best-effort
-            pass
         if cloud is None:
-            try:
+            with contextlib.suppress(Exception):
                 from penumbra.llm.openai_llm import OpenAILLM
+
                 cloud = OpenAILLM()
-            except Exception:  # noqa: BLE001
-                pass
-        try:
+        with contextlib.suppress(Exception):
             from penumbra.llm.ollama_llm import OllamaLLM
+
             local = OllamaLLM()
-        except Exception:  # noqa: BLE001
-            pass
         return cloud, local
 
     async def run(self, query: str) -> Report:
@@ -312,8 +308,7 @@ class Researcher:
         if not citations:
             return "No verifiable claims were extracted. Try a more specific query."
         bullets = "\n".join(
-            f"[{i + 1}] (confidence {c.confidence:.0%}) {c.claim}"
-            for i, c in enumerate(citations)
+            f"[{i + 1}] (confidence {c.confidence:.0%}) {c.claim}" for i, c in enumerate(citations)
         )
         prompt = (
             f"Original question:\n{query}\n\n"

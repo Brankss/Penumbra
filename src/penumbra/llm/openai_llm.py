@@ -33,9 +33,7 @@ class OpenAILLM(LLMProvider):
 
         key = api_key or os.environ.get("OPENAI_API_KEY")
         if not key:
-            raise ConfigurationError(
-                "OPENAI_API_KEY not set. Pass api_key= or export the env var."
-            )
+            raise ConfigurationError("OPENAI_API_KEY not set. Pass api_key= or export the env var.")
         self.model = model or self.DEFAULT_MODEL
         self._client = AsyncOpenAI(api_key=key, base_url=base_url)
 

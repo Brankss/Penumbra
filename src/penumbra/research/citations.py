@@ -78,12 +78,8 @@ class CitationBuilder:
         chunks = [f"Research question:\n{query}\n\nSources:\n"]
         for i, s in enumerate(sources, start=1):
             preview = s.content[:1500].replace("\n\n", "\n")
-            chunks.append(
-                f"--- Source [{i}] ---\nURL: {s.url}\nTitle: {s.title}\n\n{preview}\n"
-            )
-        chunks.append(
-            f"\nExtract up to {self._max_claims} attributable claims with source URLs."
-        )
+            chunks.append(f"--- Source [{i}] ---\nURL: {s.url}\nTitle: {s.title}\n\n{preview}\n")
+        chunks.append(f"\nExtract up to {self._max_claims} attributable claims with source URLs.")
         return "\n".join(chunks)
 
     def _parse(self, data: dict[str, Any], *, valid_urls: set[str]) -> list[Citation]:

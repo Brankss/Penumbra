@@ -17,18 +17,18 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 from penumbra.exceptions import ScrubError
 
 
-class ScrubMode(str, Enum):
+class ScrubMode(StrEnum):
     REDACT = "redact"
     TOKENIZE = "tokenize"
 
 
-class PIICategory(str, Enum):
+class PIICategory(StrEnum):
     EMAIL = "email"
     IPV4 = "ipv4"
     IPV6 = "ipv6"
@@ -173,9 +173,9 @@ class PIIScrubber:
                 cursor = m.end()
             new_text.append(result.text[cursor:])
             result.text = "".join(new_text)
-            result.matches_by_category[category] = (
-                result.matches_by_category.get(category, 0) + len(matches)
-            )
+            result.matches_by_category[category] = result.matches_by_category.get(
+                category, 0
+            ) + len(matches)
 
         return result
 

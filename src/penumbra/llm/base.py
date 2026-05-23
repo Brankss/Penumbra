@@ -92,7 +92,7 @@ def _parse_json_robust(text: str) -> dict[str, Any]:
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text
         if text.endswith("```"):
-            text = text[: -3]
+            text = text[:-3]
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -104,7 +104,7 @@ def _parse_json_robust(text: str) -> dict[str, Any]:
                 return json.loads(text[start : end + 1])
             except json.JSONDecodeError as e:
                 raise LLMError(f"LLM did not return valid JSON: {e}") from e
-        raise LLMError("LLM response contained no JSON object.")
+        raise LLMError("LLM response contained no JSON object.") from None
 
 
 class LLMRouter:
@@ -141,11 +141,7 @@ class LLMRouter:
         return self.local
 
     def pick(self, *, sensitive: bool = False) -> LLMProvider:
-        if (
-            sensitive
-            and self.privacy_level.routes_sensitive_to_local
-            and self.local is not None
-        ):
+        if sensitive and self.privacy_level.routes_sensitive_to_local and self.local is not None:
             return self.local
         return self.default
 

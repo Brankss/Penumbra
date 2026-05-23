@@ -173,7 +173,7 @@ class TorController:
                 timeout=self._circuit_timeout,
             )
             await asyncio.sleep(self._controller.get_newnym_wait())
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise TorError("Circuit rotation timed out.") from e
         logger.debug("Tor circuit rotated.")
 

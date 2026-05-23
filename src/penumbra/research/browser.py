@@ -141,9 +141,7 @@ class PrivateBrowser:
                 page = await ctx.new_page()
                 resp = await page.goto(url, wait_until="domcontentloaded")
                 if resp is None or resp.status >= 400:
-                    raise BrowserError(
-                        f"Search returned status {resp.status if resp else 'none'}"
-                    )
+                    raise BrowserError(f"Search returned status {resp.status if resp else 'none'}")
                 results = await page.evaluate(
                     """() => {
                         const out = [];

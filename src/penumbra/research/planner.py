@@ -59,8 +59,7 @@ class ResearchPlanner:
             raise ResearchError("Empty query — nothing to plan.")
 
         user_prompt = (
-            f"User question:\n{query.strip()}\n\n"
-            f"Produce up to {self._max_steps} subqueries."
+            f"User question:\n{query.strip()}\n\nProduce up to {self._max_steps} subqueries."
         )
         data = await self._router.complete_json(
             user_prompt,

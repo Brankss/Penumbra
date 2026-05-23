@@ -70,7 +70,7 @@ def research(
         level = PrivacyLevel.parse(privacy)
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from None
 
     console.print(
         Panel.fit(
@@ -104,9 +104,7 @@ def research(
         path = report.save_json(json_output)
         console.print(f"[green]✓[/green] JSON report saved to: [bold]{path}[/bold]")
     if not output and not json_output:
-        console.print(
-            "\n[dim]Tip: pass --output report.md to save the full Markdown.[/dim]"
-        )
+        console.print("\n[dim]Tip: pass --output report.md to save the full Markdown.[/dim]")
 
 
 async def _run(

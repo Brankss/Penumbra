@@ -105,7 +105,11 @@ if (_rtc) {
     window.RTCPeerConnection = function(...args) {
         const pc = new _rtc(...args);
         const _create = pc.createOffer.bind(pc);
-        pc.createOffer = (opts) => _create({ ...(opts || {}), offerToReceiveAudio: false, offerToReceiveVideo: false });
+        pc.createOffer = (opts) => _create({
+            ...(opts || {}),
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: false,
+        });
         return pc;
     };
 }

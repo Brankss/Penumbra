@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion / questions
+    url: https://github.com/Brankss/Penumbra/discussions
+    about: For questions, design discussions, or "how do I…" use Discussions instead of opening an issue.

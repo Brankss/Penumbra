@@ -34,8 +34,7 @@ class OllamaLLM(LLMProvider):
     ) -> None:
         self.model = model or os.environ.get("OLLAMA_MODEL", self.DEFAULT_MODEL)
         self.base_url = (
-            base_url
-            or os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+            base_url or os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
         ).rstrip("/")
         self._timeout = timeout
 

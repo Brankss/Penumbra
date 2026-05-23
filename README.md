@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Brankss/Penumbra/actions/workflows/test.yml"><img src="https://github.com/Brankss/Penumbra/actions/workflows/test.yml/badge.svg" alt="tests" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+" /></a>
   <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Status: Beta" />
@@ -188,7 +189,9 @@ async def private_research(query: str) -> str:
 
 PRs welcome. The codebase is small enough that a weekend can land a meaningful feature.
 
-The one rule: **every PR must justify itself against the threat model.** If a feature makes research better but privacy worse, it doesn't ship without a flag.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup, test instructions, and PR checklist. The one rule: **every PR must justify itself against the threat model.** If a feature makes research better but privacy worse, it doesn't ship without a flag.
+
+See [CHANGELOG.md](CHANGELOG.md) for the release history.
 
 ---
 
