@@ -28,7 +28,7 @@ cd Penumbra
 python -m venv .venv
 source .venv/bin/activate          # or .venv\Scripts\Activate.ps1 on Windows
 
-pip install -e ".[dev,all]"
+pip install -e ".[dev,all]"   # installs penumbra-research from source
 playwright install chromium
 ```
 

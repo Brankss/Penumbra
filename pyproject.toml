@@ -3,7 +3,7 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "penumbra"
+name = "penumbra-research"
 version = "0.1.0"
 description = "Privacy-native deep research agent. Multi-step research without leaving fingerprints."
 readme = "README.md"

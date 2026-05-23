@@ -69,7 +69,7 @@ Penumbra is not "gpt-researcher + Tor". It's a different architecture that **sta
 ## 30-second quickstart
 
 ```bash
-pip install penumbra[all]
+pip install penumbra-research[all]
 playwright install chromium
 ```
 
