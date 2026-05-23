@@ -13,14 +13,13 @@
   <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Status: Beta" />
 </p>
 
-<p align="center">
-  <video src="https://github.com/Brankss/Penumbra/raw/main/docs/demo.mp4" controls muted playsinline width="100%"></video>
-</p>
-<p align="center">
-  <em>↑ Penumbra running a research query end-to-end on a local Ollama model, zero cloud calls.</em>
-  <br />
-  <sub>(if the video doesn't play in your viewer, <a href="https://github.com/Brankss/Penumbra/raw/main/docs/demo.mp4">click here</a>)</sub>
-</p>
+<div align="center">
+
+https://github.com/user-attachments/assets/7bb61b1a-21cf-4aa1-84f2-bd9c0512d7fd
+
+<em>↑ Penumbra running a research query end-to-end on a local Ollama model, zero cloud calls.</em>
+
+</div>
 
 ---
 
