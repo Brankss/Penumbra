@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "penumbra-research"
-version = "0.1.0"
+version = "0.1.1"
 description = "Privacy-native deep research agent. Multi-step research without leaving fingerprints."
 readme = "README.md"
 license = { text = "MIT" }

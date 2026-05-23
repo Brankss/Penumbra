@@ -39,6 +39,12 @@ def _setup_logging(verbose: bool) -> None:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        console.print(f"penumbra v{__version__}")
+        raise typer.Exit()
+
+
 @app.command()
 def research(
     query: Annotated[str, typer.Argument(help="The research question.")],
@@ -63,6 +69,16 @@ def research(
         typer.Option("--per-step", help="Sources fetched per subquery."),
     ] = 4,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
+    _version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            "-V",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show version and exit.",
+        ),
+    ] = None,
 ) -> None:
     """Run a research query and print/save the resulting report."""
     _setup_logging(verbose)
@@ -135,12 +151,6 @@ def _print_summary_table(report) -> None:  # type: ignore[no-untyped-def]
     if report.metadata.get("via_tor"):
         table.add_row("Routing", "[green]via Tor[/green]")
     console.print(table)
-
-
-@app.command()
-def version() -> None:
-    """Print Penumbra version."""
-    console.print(f"penumbra v{__version__}")
 
 
 def main() -> None:

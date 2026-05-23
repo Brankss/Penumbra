@@ -6,6 +6,18 @@ and Penumbra adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.1] — CLI fix
+
+### Fixed
+- `penumbra "query"` was being interpreted by Typer as a subcommand name
+  because the CLI registered two `@app.command()` handlers (`research` and
+  `version`). Removed the `version` subcommand; the version is now exposed
+  via the `--version` / `-V` flag on the main command.
+
+### Changed
+- **Breaking (CLI):** `penumbra version` is no longer a valid command. Use
+  `penumbra --version` instead.
+
 ## [0.1.0] — Initial release
 
 ### Added
@@ -41,5 +53,6 @@ and Penumbra adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 **Tests**
 - 19 deterministic smoke tests (no network, no LLM dependency).
 
-[Unreleased]: https://github.com/Brankss/Penumbra/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Brankss/Penumbra/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Brankss/Penumbra/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Brankss/Penumbra/releases/tag/v0.1.0
