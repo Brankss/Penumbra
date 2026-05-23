@@ -23,7 +23,7 @@ class OllamaLLM(LLMProvider):
     name = "ollama"
     is_local = True
 
-    DEFAULT_MODEL = "qwen2.5:7b"
+    DEFAULT_MODEL = "batiai/gemma4-e2b:q4"
 
     def __init__(
         self,

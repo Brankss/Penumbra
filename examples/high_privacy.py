@@ -2,7 +2,8 @@
 
 Requires:
 - A locally-installed Tor (e.g. `choco install tor` on Windows)
-- Ollama running locally (`ollama serve`) with a model pulled (`ollama pull qwen2.5:7b`)
+- Ollama running locally (`ollama serve`) with a model pulled
+  (`ollama pull batiai/gemma4-e2b:q4`, or any other model — override via `OLLAMA_MODEL`)
 - Optionally ANTHROPIC_API_KEY or OPENAI_API_KEY for non-sensitive subqueries
 """
 

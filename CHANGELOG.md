@@ -43,7 +43,7 @@ and Penumbra adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 **LLM layer**
 - `LLMRouter` — sensitivity-based provider routing.
 - Providers: `AnthropicLLM` (default `claude-sonnet-4-6`), `OpenAILLM`
-  (default `gpt-4o`), `OllamaLLM` (default `qwen2.5:7b`).
+  (default `gpt-4o`), `OllamaLLM` (default `batiai/gemma4-e2b:q4`).
 
 **Interfaces**
 - `Researcher` — async context manager, four privacy levels (off/low/medium/high).

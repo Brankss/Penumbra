@@ -1,25 +1,29 @@
-"""Playwright-based private browser with optional Tor routing.
+"""Private browser + multi-backend search.
 
-This is the workhorse for retrieval. It does two things:
+Two responsibilities:
 
-1. `search(query)` — query a search engine and return result URLs
-2. `fetch(url)`    — load a page and return raw HTML
+1. `search(query)` — query a search engine and return result URLs.
+   Uses lightweight HTTP (httpx) against SearXNG public instances with a
+   DuckDuckGo-Lite fallback. No Playwright needed for search — it's faster,
+   less detectable, and avoids the 403 dance with major engines.
+2. `fetch(url)` — load an arbitrary page and return raw HTML, using
+   Playwright headless Chromium in a fresh BrowserContext per source so
+   cookies and storage don't leak between sources.
 
-The browser is configured with the active `Fingerprint` and (if Tor is enabled)
-routes through a SOCKS5 proxy. Each `fetch()` runs in a fresh BrowserContext so
-cookies and storage don't leak between sources.
-
-We use DuckDuckGo's HTML-only endpoint for search because it works through Tor
-without CAPTCHAs, and we strip its tracking redirect to get the raw target URL.
+Both layers respect the configured SOCKS5 proxy (Tor) and the active
+Fingerprint when applicable.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import urllib.parse
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+import httpx
 
 from penumbra.exceptions import BrowserError
 from penumbra.privacy.fingerprint import Fingerprint, FingerprintEngine
@@ -50,7 +54,18 @@ class SearchResult:
     snippet: str
 
 
-_SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/"
+# Search backends are tried in order. SearXNG instances first (JSON output,
+# privacy-respecting, federated), with DuckDuckGo Lite as the HTML fallback.
+# Instances rotate naturally because we shuffle the SearXNG list per session.
+_SEARXNG_INSTANCES: tuple[str, ...] = (
+    "https://priv.au",
+    "https://search.inetol.net",
+    "https://baresearch.org",
+    "https://searx.be",
+    "https://search.disroot.org",
+    "https://opnxng.com",
+)
+_DDG_LITE_ENDPOINT = "https://lite.duckduckgo.com/lite/"
 
 
 class PrivateBrowser:
@@ -133,56 +148,154 @@ class PrivateBrowser:
         return ctx, fingerprint
 
     async def search(self, query: str, *, limit: int = 10) -> list[SearchResult]:
-        """Run a search and return result URLs (deduped, tracking-stripped)."""
-        url = f"{_SEARCH_ENDPOINT}?{urllib.parse.urlencode({'q': query})}"
-        async with self._semaphore:
-            ctx, _ = await self._new_context()
-            try:
-                page = await ctx.new_page()
-                resp = await page.goto(url, wait_until="domcontentloaded")
-                if resp is None or resp.status >= 400:
-                    raise BrowserError(f"Search returned status {resp.status if resp else 'none'}")
-                results = await page.evaluate(
-                    """() => {
-                        const out = [];
-                        const items = document.querySelectorAll('.result');
-                        for (const el of items) {
-                            const a = el.querySelector('a.result__a');
-                            const s = el.querySelector('.result__snippet');
-                            if (!a) continue;
-                            out.push({
-                                href: a.getAttribute('href'),
-                                title: a.innerText.trim(),
-                                snippet: s ? s.innerText.trim() : ''
-                            });
-                        }
-                        return out;
-                    }"""
-                )
-            finally:
-                await ctx.close()
+        """Run a search across backends and return result URLs (deduped, clean).
 
+        Strategy:
+        1. Try each SearXNG instance with format=json. If one returns results,
+           use them.
+        2. Fall back to DuckDuckGo Lite HTML parsing.
+        """
+        fp = self._fp_engine.generate()
+        headers = {
+            "User-Agent": fp.user_agent,
+            "Accept-Language": f"{fp.locale},en;q=0.5",
+            "Accept": "text/html,application/json,application/xhtml+xml,*/*;q=0.8",
+        }
+        # httpx accepts proxy=None to mean "direct"
+        client_kwargs: dict[str, object] = {
+            "timeout": 20.0,
+            "follow_redirects": True,
+            "headers": headers,
+        }
+        if self._socks_proxy:
+            client_kwargs["proxy"] = self._socks_proxy
+
+        async with httpx.AsyncClient(**client_kwargs) as client:  # type: ignore[arg-type]
+            for instance in _SEARXNG_INSTANCES:
+                results = await self._try_searxng(client, instance, query, limit)
+                if results:
+                    logger.info(
+                        "Search '%s' via SearXNG (%s) -> %d results",
+                        query[:60],
+                        instance,
+                        len(results),
+                    )
+                    return results
+            results = await self._try_ddg_lite(client, query, limit)
+            if results:
+                logger.info(
+                    "Search '%s' via DDG-Lite -> %d results",
+                    query[:60],
+                    len(results),
+                )
+                return results
+
+        raise BrowserError(
+            f"All search backends failed for query: {query[:80]!r}. "
+            "Try again or check connectivity."
+        )
+
+    async def _try_searxng(
+        self,
+        client: httpx.AsyncClient,
+        instance: str,
+        query: str,
+        limit: int,
+    ) -> list[SearchResult]:
+        url = f"{instance.rstrip('/')}/search"
+        params = {
+            "q": query,
+            "format": "json",
+            "language": "en",
+            "safesearch": "0",
+        }
+        try:
+            resp = await client.get(url, params=params)
+        except httpx.HTTPError as e:
+            logger.debug("SearXNG %s network error: %s", instance, e)
+            return []
+        if resp.status_code != 200:
+            logger.debug("SearXNG %s returned %d", instance, resp.status_code)
+            return []
+        try:
+            data = resp.json()
+        except ValueError:
+            logger.debug("SearXNG %s returned non-JSON (probably HTML)", instance)
+            return []
+        return self._parse_searxng(data, limit)
+
+    def _parse_searxng(self, data: dict[str, object], limit: int) -> list[SearchResult]:
+        raw = data.get("results")
+        if not isinstance(raw, list):
+            return []
         cleaned: list[SearchResult] = []
         seen: set[str] = set()
-        for item in results:
-            href = _unwrap_duckduckgo_redirect(item.get("href", ""))
-            if not href or href in seen:
+        for item in raw:
+            if not isinstance(item, dict):
                 continue
-            if not href.startswith(("http://", "https://")):
+            url = str(item.get("url", "")).strip()
+            if not url or url in seen:
                 continue
-            seen.add(href)
+            if not url.startswith(("http://", "https://")):
+                continue
+            seen.add(url)
             cleaned.append(
                 SearchResult(
-                    url=href,
-                    title=item.get("title", "")[:200],
-                    snippet=item.get("snippet", "")[:500],
+                    url=url,
+                    title=str(item.get("title", ""))[:200],
+                    snippet=str(item.get("content", ""))[:500],
                 )
             )
             if len(cleaned) >= limit:
                 break
-
-        logger.info("Search '%s' → %d unique results", query[:60], len(cleaned))
         return cleaned
+
+    async def _try_ddg_lite(
+        self,
+        client: httpx.AsyncClient,
+        query: str,
+        limit: int,
+    ) -> list[SearchResult]:
+        try:
+            resp = await client.get(
+                _DDG_LITE_ENDPOINT,
+                params={"q": query, "kl": "us-en"},
+            )
+        except httpx.HTTPError as e:
+            logger.debug("DDG-Lite network error: %s", e)
+            return []
+        if resp.status_code != 200:
+            logger.debug("DDG-Lite returned %d", resp.status_code)
+            return []
+        return self._parse_ddg_lite(resp.text, limit)
+
+    def _parse_ddg_lite(self, html: str, limit: int) -> list[SearchResult]:
+        with contextlib.suppress(Exception):
+            from selectolax.parser import HTMLParser
+
+            tree = HTMLParser(html)
+            cleaned: list[SearchResult] = []
+            seen: set[str] = set()
+            for a in tree.css("a[href]"):
+                href = _unwrap_duckduckgo_redirect(a.attributes.get("href", "") or "")
+                if not href or href in seen:
+                    continue
+                if not href.startswith(("http://", "https://")):
+                    continue
+                if "duckduckgo.com" in href or "google.com/search" in href:
+                    continue
+                seen.add(href)
+                cleaned.append(
+                    SearchResult(
+                        url=href,
+                        title=a.text(strip=True)[:200],
+                        snippet="",
+                    )
+                )
+                if len(cleaned) >= limit:
+                    break
+            return cleaned
+        return []
 
     async def fetch(self, url: str) -> FetchedPage:
         """Load a page in an isolated context and return raw HTML."""
